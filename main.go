@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"sync/atomic"
+
 	"github.com/ivportilla/chirpy/internal/database"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -14,6 +15,7 @@ import (
 type apiConfig struct {
 	fileServerHits atomic.Int32
 	dbQueries      *database.Queries
+	platform       string
 }
 
 func main() {
@@ -29,6 +31,7 @@ func main() {
 	dbQueries := database.New(db)
 	apiCfg := apiConfig{
 		dbQueries: dbQueries,
+		platform:  os.Getenv("PLATFORM"),
 	}
 	mux := http.NewServeMux()
 	port := 8080
@@ -40,8 +43,9 @@ func main() {
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("./")))))
 	mux.HandleFunc("GET /api/healthz", healthCheckHandler)
 	mux.HandleFunc("GET /admin/metrics", metricsHandler(&apiCfg))
-	mux.Handle("POST /admin/reset", apiCfg.middlewareMetricsReset(http.HandlerFunc(metricsHandler(&apiCfg))))
+	mux.Handle("POST /admin/reset", apiCfg.middlewareMetricsReset(http.HandlerFunc(createAllUsersHandler(&apiCfg))))
 	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
+	mux.HandleFunc("POST /api/users", createUserHandler(&apiCfg))
 
 	fmt.Printf("Server listening on port %d\n", port)
 	err = server.ListenAndServe()
