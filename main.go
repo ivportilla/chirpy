@@ -44,7 +44,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", healthCheckHandler)
 	mux.HandleFunc("GET /admin/metrics", metricsHandler(&apiCfg))
 	mux.Handle("POST /admin/reset", apiCfg.middlewareMetricsReset(http.HandlerFunc(createAllUsersHandler(&apiCfg))))
-	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
+	mux.HandleFunc("POST /api/chirps", createChirpHandler(&apiCfg))
 	mux.HandleFunc("POST /api/users", createUserHandler(&apiCfg))
 
 	fmt.Printf("Server listening on port %d\n", port)
