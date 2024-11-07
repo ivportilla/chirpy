@@ -46,6 +46,8 @@ func main() {
 	mux.Handle("POST /admin/reset", apiCfg.middlewareMetricsReset(http.HandlerFunc(createAllUsersHandler(&apiCfg))))
 	mux.HandleFunc("POST /api/chirps", createChirpHandler(&apiCfg))
 	mux.HandleFunc("POST /api/users", createUserHandler(&apiCfg))
+	mux.HandleFunc("GET /api/chirps", getAllChirpsHandler(&apiCfg))
+	mux.HandleFunc("GET /api/chirps/{chirpID}", getChirp(&apiCfg))
 
 	fmt.Printf("Server listening on port %d\n", port)
 	err = server.ListenAndServe()

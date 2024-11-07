@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -25,7 +26,7 @@ type Chirp struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Body      string    `json:"body"`
-	UserID    string    `json:"user_id"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 func isChirpValid(content string) bool {
@@ -56,6 +57,16 @@ func sanitizeChirp(content string) string {
 	}
 
 	return strings.Join(resultWords, " ")
+}
+
+func toChirp(target database.Chirp) Chirp {
+	return Chirp{
+		ID:        target.ID,
+		CreatedAt: target.CreatedAt,
+		UpdatedAt: target.UpdatedAt,
+		Body:      target.Body,
+		UserID:    target.UserID,
+	}
 }
 
 func createChirpHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
@@ -91,14 +102,49 @@ func createChirpHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request)
 			return
 		}
 
-		newChirp := Chirp{
-			ID:        chirp.ID,
-			CreatedAt: chirp.CreatedAt,
-			UpdatedAt: chirp.UpdatedAt,
-			Body:      chirp.Body,
-			UserID:    chirp.UserID.String(),
+		respondWithJSON(res, http.StatusCreated, toChirp(chirp))
+	}
+}
+
+func getAllChirpsHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
+	return func(res http.ResponseWriter, req *http.Request) {
+		chirps, err := cfg.dbQueries.GetChirps(req.Context())
+		if err != nil {
+			fmt.Printf("Error fetching chirps: %v", err)
+			respondWithError(res, http.StatusInternalServerError, "Error getting chirps")
 		}
 
-		respondWithJSON(res, http.StatusCreated, newChirp)
+		response := make([]Chirp, len(chirps))
+		for i, chirp := range chirps {
+			response[i] = toChirp(chirp)
+		}
+
+		respondWithJSON(res, http.StatusOK, response)
+	}
+}
+
+
+func getChirp(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
+	return func(res http.ResponseWriter, req *http.Request) {
+		id := req.PathValue("chirpID")
+		parsedId, err := uuid.Parse(id)
+		if err != nil {
+			fmt.Printf("Error converting chirp id to uuid: %v", err)
+			respondWithError(res, http.StatusBadRequest, "Invalid chirp ID, it must be a UUID")
+			return
+		}
+		chirp, err := cfg.dbQueries.GetChirp(req.Context(), parsedId)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				respondWithError(res, http.StatusNotFound, "Chirp not found")
+				return
+			}
+			
+			fmt.Printf("Error fetching chirp %s: %v", id, err)
+			respondWithError(res, http.StatusInternalServerError, "Error getting chirp")
+			return
+		}
+
+		respondWithJSON(res, http.StatusOK, toChirp(chirp))
 	}
 }
