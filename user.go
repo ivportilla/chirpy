@@ -2,11 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ivportilla/chirpy/internal/auth"
+	"github.com/ivportilla/chirpy/internal/database"
 )
 
 type User struct {
@@ -14,10 +17,21 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 type CreateUserReq struct {
-	Email string `json:"email"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func ToResponseUser(dbUser database.User) User {
+	return User{
+		ID:        dbUser.ID,
+		CreatedAt: dbUser.CreatedAt,
+		UpdatedAt: dbUser.UpdatedAt,
+		Email:     dbUser.Email,
+	}
 }
 
 func createUserHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
@@ -29,7 +43,13 @@ func createUserHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request) 
 			return
 		}
 
-		user, err := cfg.dbQueries.CreateUser(req.Context(), body.Email)
+		pwd, err := auth.HashPassword(body.Password)
+		if err != nil {
+			fmt.Printf("Error generating password hash: %v\n", err)
+			respondWithError(res, http.StatusBadRequest, "Error generating password hash")
+			return
+		}
+		user, err := cfg.dbQueries.CreateUser(req.Context(), database.CreateUserParams{Email: body.Email, HashedPassword: pwd})
 		if err != nil {
 			respondWithError(res, http.StatusInternalServerError, "Error creating user")
 			return
@@ -51,7 +71,7 @@ func createAllUsersHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Reque
 			res.WriteHeader(http.StatusForbidden)
 			return
 		}
-		
+
 		err := cfg.dbQueries.DeleteAllUsers(req.Context())
 		if err != nil {
 			log.Printf("Error deleting users: %v", err)

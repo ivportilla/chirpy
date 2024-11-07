@@ -13,8 +13,7 @@ import (
 )
 
 type RequestParams struct {
-	Body   string `json:"body"`
-	UserID string `json:"user_id"`
+	Body string `json:"body"`
 }
 
 type ValidationResponse struct {
@@ -87,15 +86,15 @@ func createChirpHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request)
 			return
 		}
 
-		userId, err := uuid.Parse(reqBody.UserID)
+		userID, err := uuid.Parse(req.Context().Value("user_id").(string))
 		if err != nil {
-			fmt.Printf("Error converting user_id to uuid: %v", err)
+			fmt.Printf("Error converting user_id to uuid: %v\n", err)
 			respondWithError(res, http.StatusBadRequest, "Error decoding user_id, it is not a valid UUID")
 			return
 		}
 
 		chirpBody := sanitizeChirp(reqBody.Body)
-		chirp, err := cfg.dbQueries.CreateChirp(req.Context(), database.CreateChirpParams{Body: chirpBody, UserID: userId})
+		chirp, err := cfg.dbQueries.CreateChirp(req.Context(), database.CreateChirpParams{Body: chirpBody, UserID: userID})
 		if err != nil {
 			fmt.Printf("Error creating chirp: %v", err)
 			respondWithError(res, http.StatusInternalServerError, "Error creating chirp")
@@ -123,7 +122,6 @@ func getAllChirpsHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request
 	}
 }
 
-
 func getChirp(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
 	return func(res http.ResponseWriter, req *http.Request) {
 		id := req.PathValue("chirpID")
@@ -139,7 +137,7 @@ func getChirp(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
 				respondWithError(res, http.StatusNotFound, "Chirp not found")
 				return
 			}
-			
+
 			fmt.Printf("Error fetching chirp %s: %v", id, err)
 			respondWithError(res, http.StatusInternalServerError, "Error getting chirp")
 			return

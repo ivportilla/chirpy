@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileServerHits atomic.Int32
 	dbQueries      *database.Queries
 	platform       string
+	authSecret     string
 }
 
 func main() {
@@ -30,8 +31,9 @@ func main() {
 
 	dbQueries := database.New(db)
 	apiCfg := apiConfig{
-		dbQueries: dbQueries,
-		platform:  os.Getenv("PLATFORM"),
+		dbQueries:  dbQueries,
+		platform:   os.Getenv("PLATFORM"),
+		authSecret: os.Getenv("AUTH_SECRET"),
 	}
 	mux := http.NewServeMux()
 	port := 8080
@@ -44,10 +46,11 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", healthCheckHandler)
 	mux.HandleFunc("GET /admin/metrics", metricsHandler(&apiCfg))
 	mux.Handle("POST /admin/reset", apiCfg.middlewareMetricsReset(http.HandlerFunc(createAllUsersHandler(&apiCfg))))
-	mux.HandleFunc("POST /api/chirps", createChirpHandler(&apiCfg))
+	mux.Handle("POST /api/chirps", apiCfg.withAuthMiddleware(http.HandlerFunc(createChirpHandler(&apiCfg))))
 	mux.HandleFunc("POST /api/users", createUserHandler(&apiCfg))
 	mux.HandleFunc("GET /api/chirps", getAllChirpsHandler(&apiCfg))
 	mux.HandleFunc("GET /api/chirps/{chirpID}", getChirp(&apiCfg))
+	mux.HandleFunc("POST /api/login", loginHandler(&apiCfg))
 
 	fmt.Printf("Server listening on port %d\n", port)
 	err = server.ListenAndServe()
