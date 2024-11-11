@@ -51,6 +51,8 @@ func main() {
 	mux.HandleFunc("GET /api/chirps", getAllChirpsHandler(&apiCfg))
 	mux.HandleFunc("GET /api/chirps/{chirpID}", getChirp(&apiCfg))
 	mux.HandleFunc("POST /api/login", loginHandler(&apiCfg))
+	mux.HandleFunc("POST /api/refresh", refreshTokenHandler(&apiCfg))
+	mux.HandleFunc("POST /api/revoke", revokeRefreshToken(&apiCfg))
 
 	fmt.Printf("Server listening on port %d\n", port)
 	err = server.ListenAndServe()
