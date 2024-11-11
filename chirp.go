@@ -105,6 +105,42 @@ func createChirpHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request)
 	}
 }
 
+func deleteChirpHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
+	return func(res http.ResponseWriter, req *http.Request) {
+		userID := uuid.MustParse(req.Context().Value("user_id").(string))
+		chirpID, err := uuid.Parse(req.PathValue("chirpID"))
+		if err != nil {
+			fmt.Printf("Error converting chirp id to uuid: %v", err)
+			respondWithError(res, http.StatusBadRequest, "Invalid chirp ID, it must be a UUID")
+			return
+		}
+
+		chirp, err := cfg.dbQueries.GetChirp(req.Context(), chirpID)
+		if err != nil {
+			fmt.Printf("Error getting chirp from DB: %v", err)
+			if err == sql.ErrNoRows {
+				respondWithError(res, http.StatusNotFound, "Error chirp not found")
+				return
+			}
+			respondWithError(res, http.StatusInternalServerError, "Error getting chirp information")
+			return
+		}
+
+		if chirp.UserID != userID {
+			respondWithError(res, http.StatusForbidden, "Forbidden")
+			return
+		}
+
+		err = cfg.dbQueries.DeleteChirp(req.Context(), chirpID)
+		if err != nil {
+			respondWithError(res, http.StatusInternalServerError, "Error deleting chirp")
+			return
+		}
+
+		respondWithJSON(res, http.StatusNoContent, toChirp(chirp))
+	}
+}
+
 func getAllChirpsHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
 	return func(res http.ResponseWriter, req *http.Request) {
 		chirps, err := cfg.dbQueries.GetChirps(req.Context())

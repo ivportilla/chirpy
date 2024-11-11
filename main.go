@@ -17,6 +17,7 @@ type apiConfig struct {
 	dbQueries      *database.Queries
 	platform       string
 	authSecret     string
+	apiKey         string
 }
 
 func main() {
@@ -34,6 +35,7 @@ func main() {
 		dbQueries:  dbQueries,
 		platform:   os.Getenv("PLATFORM"),
 		authSecret: os.Getenv("AUTH_SECRET"),
+		apiKey:     os.Getenv("POLKA_KEY"),
 	}
 	mux := http.NewServeMux()
 	port := 8080
@@ -47,12 +49,15 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", metricsHandler(&apiCfg))
 	mux.Handle("POST /admin/reset", apiCfg.middlewareMetricsReset(http.HandlerFunc(createAllUsersHandler(&apiCfg))))
 	mux.Handle("POST /api/chirps", apiCfg.withAuthMiddleware(http.HandlerFunc(createChirpHandler(&apiCfg))))
+	mux.Handle("DELETE /api/chirps/{chirpID}", apiCfg.withAuthMiddleware(http.HandlerFunc(deleteChirpHandler(&apiCfg))))
 	mux.HandleFunc("POST /api/users", createUserHandler(&apiCfg))
+	mux.Handle("PUT /api/users", apiCfg.withAuthMiddleware(http.HandlerFunc(updateUserHandler(&apiCfg))))
 	mux.HandleFunc("GET /api/chirps", getAllChirpsHandler(&apiCfg))
 	mux.HandleFunc("GET /api/chirps/{chirpID}", getChirp(&apiCfg))
 	mux.HandleFunc("POST /api/login", loginHandler(&apiCfg))
 	mux.HandleFunc("POST /api/refresh", refreshTokenHandler(&apiCfg))
 	mux.HandleFunc("POST /api/revoke", revokeRefreshToken(&apiCfg))
+	mux.HandleFunc("POST /api/polka/webhooks", handleUserUpgrade(&apiCfg))
 
 	fmt.Printf("Server listening on port %d\n", port)
 	err = server.ListenAndServe()

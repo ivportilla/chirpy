@@ -85,6 +85,40 @@ func TestGetBearerToken(t *testing.T) {
 	})
 }
 
+func TestGetApiKey(t *testing.T) {
+	t.Run("Extract a token correctly", func(t *testing.T) {
+		header := http.Header{}
+		expectedToken := "expected_token"
+		header.Add("Authorization", "ApiKey "+expectedToken)
+		r, err := GetAPIKey(header)
+		if err != nil {
+			t.Errorf("Non error expected for a valid authorization header")
+		}
+
+		if r != expectedToken {
+			t.Errorf("Expected token %s, but got %s", expectedToken, r)
+		}
+	})
+
+	t.Run("Get an error when authorization is empty", func(t *testing.T) {
+		header := http.Header{}
+		header.Add("Authorization", "")
+		_, err := GetAPIKey(header)
+		if err == nil {
+			t.Errorf("Expected error with empty auth header")
+		}
+	})
+
+	t.Run("Get an error when authorization is invalid", func(t *testing.T) {
+		header := http.Header{}
+		header.Add("Authorization", "invalid auth header")
+		_, err := GetAPIKey(header)
+		if err == nil {
+			t.Errorf("Expected error with empty auth header")
+		}
+	})
+}
+
 func TestCheckPasswordHash(t *testing.T) {
 	// First, we need to create some hashed passwords for testing
 	password1 := "correctPassword123!"
