@@ -7,7 +7,9 @@ RETURNING *;
 
 -- name: GetChirps :many
 SELECT * FROM chirps
-ORDER BY created_at;
+ORDER BY
+    CASE WHEN @order_by::TEXT = 'ASC' THEN chirps.created_at END ASC,
+    CASE WHEN @order_by::TEXT = 'DESC' THEN chirps.created_at END DESC;
 
 -- name: GetChirp :one
 SELECT * FROM chirps
@@ -22,3 +24,10 @@ UPDATE users
 SET is_chirpy_red = TRUE
 WHERE id = $1
 RETURNING *;
+
+-- name: GetChirpsByAuthor :many
+SELECT * FROM chirps
+WHERE user_id = $1
+ORDER BY
+    CASE WHEN @order_by::TEXT = 'ASC' THEN chirps.created_at END ASC,
+    CASE WHEN @order_by::TEXT = 'DESC' THEN chirps.created_at END DESC;

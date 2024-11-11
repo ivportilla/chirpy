@@ -141,12 +141,41 @@ func deleteChirpHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request)
 	}
 }
 
-func getAllChirpsHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
+func getSortBy(sortBy string) string {
+	if strings.ToUpper(sortBy) == "DESC" {
+		return "DESC"
+	} else {
+		return "ASC"
+	}
+}
+
+func getChirpsHandler(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
 	return func(res http.ResponseWriter, req *http.Request) {
-		chirps, err := cfg.dbQueries.GetChirps(req.Context())
+		var chirps []database.Chirp
+		var err error
+
+		sortBy := getSortBy(req.URL.Query().Get("sort"))
+		rawAuthorID := req.URL.Query().Get("author_id")
+		if rawAuthorID == "" {
+			chirps, err = cfg.dbQueries.GetChirps(req.Context(), sortBy)
+		} else {
+			authorID, err := uuid.Parse(rawAuthorID)
+			if err != nil {
+				fmt.Printf("Error parsing author_id: %v\n", err)
+				respondWithError(res, http.StatusBadRequest, "Error parsing author_id, it must be an uuid")
+				return
+			}
+			chirps, err = cfg.dbQueries.GetChirpsByAuthor(req.Context(), database.GetChirpsByAuthorParams{UserID: authorID, OrderBy: sortBy})
+		}
+
 		if err != nil {
-			fmt.Printf("Error fetching chirps: %v", err)
+			if err == sql.ErrNoRows {
+				respondWithJSON(res, http.StatusOK, []Chirp{})
+				return
+			}
+			fmt.Printf("Error getting chirps from DB: %v\n", err)
 			respondWithError(res, http.StatusInternalServerError, "Error getting chirps")
+			return
 		}
 
 		response := make([]Chirp, len(chirps))
@@ -163,7 +192,7 @@ func getChirp(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
 		id := req.PathValue("chirpID")
 		parsedId, err := uuid.Parse(id)
 		if err != nil {
-			fmt.Printf("Error converting chirp id to uuid: %v", err)
+			fmt.Printf("Error converting chirp id to uuid: %v\n", err)
 			respondWithError(res, http.StatusBadRequest, "Invalid chirp ID, it must be a UUID")
 			return
 		}
@@ -174,7 +203,7 @@ func getChirp(cfg *apiConfig) func(http.ResponseWriter, *http.Request) {
 				return
 			}
 
-			fmt.Printf("Error fetching chirp %s: %v", id, err)
+			fmt.Printf("Error fetching chirp %s: %v\n", id, err)
 			respondWithError(res, http.StatusInternalServerError, "Error getting chirp")
 			return
 		}

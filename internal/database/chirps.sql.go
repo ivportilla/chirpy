@@ -67,11 +67,55 @@ func (q *Queries) GetChirp(ctx context.Context, id uuid.UUID) (Chirp, error) {
 
 const getChirps = `-- name: GetChirps :many
 SELECT id, created_at, updated_at, body, user_id FROM chirps
-ORDER BY created_at
+ORDER BY
+    CASE WHEN $1::TEXT = 'ASC' THEN chirps.created_at END ASC,
+    CASE WHEN $1::TEXT = 'DESC' THEN chirps.created_at END DESC
 `
 
-func (q *Queries) GetChirps(ctx context.Context) ([]Chirp, error) {
-	rows, err := q.db.QueryContext(ctx, getChirps)
+func (q *Queries) GetChirps(ctx context.Context, orderBy string) ([]Chirp, error) {
+	rows, err := q.db.QueryContext(ctx, getChirps, orderBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Chirp
+	for rows.Next() {
+		var i Chirp
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Body,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChirpsByAuthor = `-- name: GetChirpsByAuthor :many
+SELECT id, created_at, updated_at, body, user_id FROM chirps
+WHERE user_id = $1
+ORDER BY
+    CASE WHEN $2::TEXT = 'ASC' THEN chirps.created_at END ASC,
+    CASE WHEN $2::TEXT = 'DESC' THEN chirps.created_at END DESC
+`
+
+type GetChirpsByAuthorParams struct {
+	UserID  uuid.UUID
+	OrderBy string
+}
+
+func (q *Queries) GetChirpsByAuthor(ctx context.Context, arg GetChirpsByAuthorParams) ([]Chirp, error) {
+	rows, err := q.db.QueryContext(ctx, getChirpsByAuthor, arg.UserID, arg.OrderBy)
 	if err != nil {
 		return nil, err
 	}

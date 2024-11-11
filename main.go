@@ -52,7 +52,7 @@ func main() {
 	mux.Handle("DELETE /api/chirps/{chirpID}", apiCfg.withAuthMiddleware(http.HandlerFunc(deleteChirpHandler(&apiCfg))))
 	mux.HandleFunc("POST /api/users", createUserHandler(&apiCfg))
 	mux.Handle("PUT /api/users", apiCfg.withAuthMiddleware(http.HandlerFunc(updateUserHandler(&apiCfg))))
-	mux.HandleFunc("GET /api/chirps", getAllChirpsHandler(&apiCfg))
+	mux.HandleFunc("GET /api/chirps", getChirpsHandler(&apiCfg))
 	mux.HandleFunc("GET /api/chirps/{chirpID}", getChirp(&apiCfg))
 	mux.HandleFunc("POST /api/login", loginHandler(&apiCfg))
 	mux.HandleFunc("POST /api/refresh", refreshTokenHandler(&apiCfg))
